@@ -2,6 +2,15 @@ const catchAsync = require('../utils/catchAsync');
 const User = require('../models/user.model');
 const AppError = require('../utils/appError');
 
+exports.polishUserToSend = (user, ...fieldsToRemove) => {
+  if (Array.isArray(user)) {
+    return user.map((user) => polishUserToSend(user, ...fieldsToRemove));
+  }
+  const userToSend = user.toObject();
+  fieldsToRemove.forEach((field) => (userToSend[field] = undefined));
+  return userToSend;
+};
+
 /**
  * Middleware function to remove the password field from the request body and send an error if it exists.
  *
@@ -31,8 +40,9 @@ exports.polishBody = (body) => (req, res, next) => {
 const sendUser = (user, statusCode, res) => {
   return res.status(statusCode).json({
     status: 'success',
+    results: user.length,
     data: {
-      user,
+      user: polishUserToSend(user, 'password', 'updatedAt', '__v'),
     },
   });
 };

@@ -3,6 +3,7 @@ const AppError = require('./utils/appError');
 const errorHandler = require('./services/errorHandler');
 const userRouter = require('./routes/user.routes');
 const morgan = require('morgan');
+const cors = require('cors');
 
 const app = express();
 
@@ -10,6 +11,7 @@ const app = express();
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 app.use(express.json());
+app.use(cors());
 
 // Routes
 app.use('/api/users', userRouter);

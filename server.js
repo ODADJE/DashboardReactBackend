@@ -8,5 +8,5 @@ dbConfig();
 // Start the server
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
-  console.log(`The server is listening on : http://localhost:${PORT}/`);
+  console.log(`The server is listening on :localhost:${PORT}/`);
 });

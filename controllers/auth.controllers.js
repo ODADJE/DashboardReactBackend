@@ -2,6 +2,7 @@ const User = require('../models/user.model');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/appError');
 const jwt = require('jsonwebtoken');
+const { polishUserToSend } = require('./user.controllers');
 
 /**
  * Generates a JWT token for the given user.
@@ -10,6 +11,7 @@ const jwt = require('jsonwebtoken');
  * @return {string} The generated JWT token.
  */
 const createToken = (user) => {
+  console.log(user);
   return jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
@@ -29,7 +31,7 @@ const sendUser = (user, statusCode, res) => {
     status: 'success',
     token,
     data: {
-      user,
+      user: polishUserToSend(user, 'password', 'updatedAt', '__v'),
     },
   });
 };
@@ -51,12 +53,12 @@ exports.protect = catchAsync(async (req, res, next) => {
     token = req.headers.authorization.split(' ')[1];
   }
   if (!token) {
-    next(new AppError('You are not logged in!', 401));
+    return next(new AppError('You are not logged in!', 401));
   }
   const decoded = jwt.verify(token, process.env.JWT_SECRET);
   const user = await User.findById(decoded.id);
   if (!user) {
-    next(
+    return next(
       new AppError(
         'The user belonging to this token does no longer exist.',
         401
@@ -95,7 +97,7 @@ exports.restrictTo = (...roles) => {
 exports.signUp = catchAsync(async (req, res, next) => {
   const { name, email, password, role } = req.body;
   const user = await User.findOne({ email });
-  if (user) next(new AppError('User already exists', 400));
+  if (user) return next(new AppError('User already exists', 400));
   const newUser = await User.create({
     name,
     email,
@@ -118,7 +120,7 @@ exports.signIn = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email }).select('+password');
   if (!user || !(await user.comparePassword(password, user.password))) {
-    next(new AppError('Incorrect email or password', 401));
+    return next(new AppError('Incorrect email or password', 401));
   }
   return sendUser(user, 200, res);
 });
@@ -135,7 +137,7 @@ exports.signIn = catchAsync(async (req, res, next) => {
 exports.me = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user.id);
   if (!user) {
-    next(new AppError('User not found', 404));
+    return next(new AppError('User not found', 404));
   }
   return sendUser(user, 200, res);
 });
@@ -153,7 +155,7 @@ exports.changePassword = catchAsync(async (req, res, next) => {
   const { oldPassword, newPassword } = req.body;
   const user = await User.findById(req.user.id).select('+password');
   if (!(await user.comparePassword(oldPassword, user.password))) {
-    next(new AppError('Incorrect old password', 401));
+    return next(new AppError('Incorrect old password', 401));
   }
   user.password = newPassword;
   await user.save();
@@ -171,7 +173,7 @@ exports.changePassword = catchAsync(async (req, res, next) => {
  */
 exports.forgotPassword = catchAsync(async (req, res, next) => {
   const user = await User.findOne({ email: req.body.email });
-  if (!user) next(new AppError('No user with this email', 404));
+  if (!user) return next(new AppError('No user with this email', 404));
   user.password = req.body.password;
   await user.save();
   return sendUser(user, 200, res);
